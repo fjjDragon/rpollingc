@@ -30,6 +30,9 @@ public class LongConnHttpClient implements EndPoint, HttpClient<ReqOptions> {
         }
     }
 
+    /**
+     * 包装的请求对象
+     */
     class Req extends HttpRequest<ReqOptions> {
         private ByteBuf byteBuf;
         private final BiConsumer<FullHttpResponse, Req> onResp;
@@ -75,12 +78,15 @@ public class LongConnHttpClient implements EndPoint, HttpClient<ReqOptions> {
         }
     }
 
+    /**
+     * 包装的响应对象
+     */
     private static class Res<T> {
         T res;
         Throwable err;
     }
 
-    private HttpEndPoint endPoint;
+    private final HttpEndPoint endPoint;
 
     private final HttpCodec codec;
 
@@ -111,10 +117,12 @@ public class LongConnHttpClient implements EndPoint, HttpClient<ReqOptions> {
                           BiConsumer<FullHttpResponse, Req> onResp,
                           BiConsumer<Throwable, Req> onErr,
                           ReqOptions options) throws RpcException {
+
         Req request = new Req(method, url, body, onResp, onErr, options);
         ByteBuf byteBuf = codec.encode(request);
         request.setByteBuf(byteBuf);
         return request;
+
     }
 
     @Override
@@ -151,7 +159,7 @@ public class LongConnHttpClient implements EndPoint, HttpClient<ReqOptions> {
                 throw new RpcException(res.err.getMessage(), res.err);
             }
         }
-        if(res.res == null){
+        if (res.res == null) {
             throw new RpcException("timeout");
         }
         try {
@@ -168,7 +176,6 @@ public class LongConnHttpClient implements EndPoint, HttpClient<ReqOptions> {
     private void async(HttpMethod method, String url, Object body,
                        Consumer<HttpResponse> onResp,
                        Consumer<Throwable> onErr, ReqOptions options) {
-
 
         BiConsumer<FullHttpResponse, Req> resp = (frs, r) -> {
             try {
