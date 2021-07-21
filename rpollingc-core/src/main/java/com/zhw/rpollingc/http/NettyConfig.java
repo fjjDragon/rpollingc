@@ -1,7 +1,5 @@
 package com.zhw.rpollingc.http;
 
-import io.netty.util.internal.StringUtil;
-
 import java.net.InetSocketAddress;
 
 public class NettyConfig {
@@ -12,6 +10,9 @@ public class NettyConfig {
     private int maxRespBodyLen = 10 << 20; // 10M
     private long maxWaitingOpenTimeMs = 5000;//5s
     private int maxWaitingReSendReq = 1000;
+
+
+    private int connNum = 8;// 默认创建的连接数量
 
     public NettyConfig() {
     }
@@ -79,5 +80,13 @@ public class NettyConfig {
 
     public void setMaxWaitingReSendReq(int maxWaitingReSendReq) {
         this.maxWaitingReSendReq = maxWaitingReSendReq;
+    }
+
+    public int getConnNum() {
+        return connNum;
+    }
+
+    public void setConnNum(int connNum) {
+        this.connNum = connNum;
     }
 }

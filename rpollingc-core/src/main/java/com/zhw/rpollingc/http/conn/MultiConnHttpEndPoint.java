@@ -7,24 +7,21 @@ import io.netty.util.internal.ThreadLocalRandom;
 
 public class MultiConnHttpEndPoint implements HttpEndPoint {
 
-    private static final int DEFAULT_CONN = SystemPropertyUtil.getInt("rpollingc.connection.num", 8);
-
     private final HttpEndPoint[] endPoints;
     private final int connNum;
 
     public MultiConnHttpEndPoint(NettyConfig config) {
-        this(DEFAULT_CONN, config);
-    }
-
-    public MultiConnHttpEndPoint(int connNum, NettyConfig config) {
-        this(connNum, new HttpConnectionFactory(config));
-    }
-
-    public MultiConnHttpEndPoint(int connNum, HttpConnectionFactory factory) {
-        if (connNum < 2) {
-            throw new IllegalArgumentException("connNum < 2");
+        int vm_num = SystemPropertyUtil.getInt("rpollingc.connection.num", 0);
+        if (vm_num > 0) {
+            this.connNum = vm_num;
+        } else {
+            this.connNum = config.getConnNum();
         }
-        this.connNum = connNum;
+//        if (this.connNum < 2) {
+//            throw new IllegalArgumentException("connNum < 2");
+//        }
+        HttpConnectionFactory factory = new HttpConnectionFactory(config);
+
         HttpConnection first = factory.createConnection();
         HttpConnection t = first;
 

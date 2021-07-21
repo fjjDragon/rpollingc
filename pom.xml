@@ -18,7 +18,6 @@
     <packaging>pom</packaging>
     <dependencyManagement>
         <dependencies>
-
             <dependency>
                 <groupId>io.reactivex.rxjava2</groupId>
                 <artifactId>rxjava</artifactId>
@@ -48,6 +47,11 @@
                 <groupId>io.netty</groupId>
                 <artifactId>netty-codec-http</artifactId>
                 <version>4.1.33.Final</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.guava</groupId>
+                <artifactId>guava</artifactId>
+                <version>30.1-jre</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

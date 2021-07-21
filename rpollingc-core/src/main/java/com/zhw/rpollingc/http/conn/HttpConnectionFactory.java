@@ -12,7 +12,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class HttpConnectionFactory {
     private final EventLoopGroup group;
-    private NettyConfig conf;
+    private final NettyConfig conf;
     private Bootstrap bootstrap;
 
     public HttpConnectionFactory(NettyConfig conf) {
@@ -27,10 +27,10 @@ public class HttpConnectionFactory {
         bootstrap = new Bootstrap();
         bootstrap.group(group);
         bootstrap.resolver(new ExpiredAddressResolverGroup(conf.getDnsExpireTime()));
-        bootstrap.option(ChannelOption.AUTO_READ, true);
+//        bootstrap.option(ChannelOption.AUTO_READ, true);
         bootstrap.option(ChannelOption.TCP_NODELAY, true);
         bootstrap.option(ChannelOption.SO_KEEPALIVE, true);
-        bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+//        bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         bootstrap.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 3000);
         bootstrap.channel(NioSocketChannel.class);
         bootstrap.remoteAddress(conf.getRemoteAddress());

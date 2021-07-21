@@ -1,6 +1,6 @@
 package com.zhw.rpollingc.http;
 
-import com.zhw.rpollingc.common.EndPoint;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.zhw.rpollingc.common.RpcException;
 import com.zhw.rpollingc.http.conn.HttpEndPoint;
 import com.zhw.rpollingc.http.conn.HttpRequest;
@@ -8,20 +8,41 @@ import com.zhw.rpollingc.http.conn.MultiConnHttpEndPoint;
 import com.zhw.rpollingc.http.protocol.HttpCodec;
 import com.zhw.rpollingc.http.protocol.ReqOptions;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.util.ReferenceCounted;
+import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-public class LongConnHttpClient implements EndPoint, HttpClient<ReqOptions> {
+public class LongConnHttpClient implements HttpClient<ReqOptions> {
 
-    private static final long timeoutMs = 10000L;
+    public static final long timeoutMs = 10000L;
+
+    private final HttpEndPoint endPoint;
+
+    @Nullable
+    private final HttpCodec codec;
+
+    private final ExecutorService executorService;
+
+    // private final ThreadFactory defaultThreadFactory = new DefaultThreadFactory("longConnHttpClient-", false);
+    private final ThreadFactory defaultThreadFactory = new ThreadFactoryBuilder().setNameFormat("longConnHttpClient-%d").build();
+
+    public LongConnHttpClient(@NonNull NettyConfig config, @Nullable HttpCodec codec) {
+        if (config == null) {
+            throw new NullPointerException("config");
+        }
+        this.codec = codec;
+
+        endPoint = new MultiConnHttpEndPoint(config);
+        executorService = new ThreadPoolExecutor(0, 16 /*Math.min(Runtime.getRuntime().availableProcessors(), 16)*/,
+                60L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(50), defaultThreadFactory);
+    }
 
     private static void release(ReferenceCounted ref) {
         int refCnt;
@@ -30,10 +51,19 @@ public class LongConnHttpClient implements EndPoint, HttpClient<ReqOptions> {
         }
     }
 
+    public void connect() {
+        endPoint.connect();
+    }
+
+    public void close() {
+        executorService.shutdown();
+        endPoint.close();
+    }
+
     /**
      * 包装的请求对象
      */
-    class Req extends HttpRequest<ReqOptions> {
+    private class Req extends HttpRequest<ReqOptions> {
         private ByteBuf byteBuf;
         private final BiConsumer<FullHttpResponse, Req> onResp;
         private final BiConsumer<Throwable, Req> onErr;
@@ -86,32 +116,6 @@ public class LongConnHttpClient implements EndPoint, HttpClient<ReqOptions> {
         Throwable err;
     }
 
-    private final HttpEndPoint endPoint;
-
-    private final HttpCodec codec;
-
-    private final ExecutorService executorService;
-
-    public LongConnHttpClient(NettyConfig config, HttpCodec codec) {
-        if (config == null || codec == null) {
-            throw new NullPointerException("config||codec");
-        }
-        this.codec = codec;
-        endPoint = new MultiConnHttpEndPoint(config);
-        endPoint.connect();
-        executorService = Executors.newCachedThreadPool();
-    }
-
-    @Override
-    public void connect() {
-
-    }
-
-    @Override
-    public void close() {
-        executorService.shutdown();
-        endPoint.close();
-    }
 
     private Req encodeReq(HttpMethod method, String url, Object body,
                           BiConsumer<FullHttpResponse, Req> onResp,
@@ -119,15 +123,24 @@ public class LongConnHttpClient implements EndPoint, HttpClient<ReqOptions> {
                           ReqOptions options) throws RpcException {
 
         Req request = new Req(method, url, body, onResp, onErr, options);
-        ByteBuf byteBuf = codec.encode(request);
+        ByteBuf byteBuf;
+        if (null != codec) {
+            byteBuf = codec.encode(request);
+        } else {
+            byteBuf = Unpooled.buffer();
+        }
         request.setByteBuf(byteBuf);
         return request;
-
     }
 
     @Override
     public HttpResponse get(String url, ReqOptions options) throws RpcException {
         return sync(HttpMethod.GET, url, null, options);
+    }
+
+    @Override
+    public HttpResponse post(String url, Object body, ReqOptions options) throws RpcException {
+        return sync(HttpMethod.POST, url, body, options);
     }
 
     private HttpResponse sync(HttpMethod method, String url, Object body, ReqOptions options) {
@@ -173,6 +186,24 @@ public class LongConnHttpClient implements EndPoint, HttpClient<ReqOptions> {
         }
     }
 
+
+    @Override
+    public void getAsync(String url,
+                         ReqOptions options,
+                         Consumer<HttpResponse> onResp,
+                         Consumer<Throwable> onErr) {
+        async(HttpMethod.GET, url, null, onResp, onErr, options);
+    }
+
+    @Override
+    public void postAsync(String url,
+                          Object body,
+                          ReqOptions options,
+                          Consumer<HttpResponse> onResp,
+                          Consumer<Throwable> onErr) {
+        async(HttpMethod.POST, url, body, onResp, onErr, options);
+    }
+
     private void async(HttpMethod method, String url, Object body,
                        Consumer<HttpResponse> onResp,
                        Consumer<Throwable> onErr, ReqOptions options) {
@@ -207,25 +238,5 @@ public class LongConnHttpClient implements EndPoint, HttpClient<ReqOptions> {
         }
     }
 
-    @Override
-    public HttpResponse post(String url, Object body, ReqOptions options) throws RpcException {
-        return sync(HttpMethod.POST, url, body, options);
-    }
 
-    @Override
-    public void getAsync(String url,
-                         ReqOptions options,
-                         Consumer<HttpResponse> onResp,
-                         Consumer<Throwable> onErr) {
-        async(HttpMethod.GET, url, null, onResp, onErr, options);
-    }
-
-    @Override
-    public void postAsync(String url,
-                          Object body,
-                          ReqOptions options,
-                          Consumer<HttpResponse> onResp,
-                          Consumer<Throwable> onErr) {
-        async(HttpMethod.POST, url, body, onResp, onErr, options);
-    }
 }

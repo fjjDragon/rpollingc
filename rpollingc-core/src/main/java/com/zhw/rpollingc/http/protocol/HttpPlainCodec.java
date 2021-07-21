@@ -1,5 +1,6 @@
 package com.zhw.rpollingc.http.protocol;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zhw.rpollingc.common.codec.DecodeException;
 import com.zhw.rpollingc.common.codec.EncodeException;
@@ -24,13 +25,13 @@ import java.util.Map;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
-public class HttpJsonCodec extends HttpCodec {
+public class HttpPlainCodec extends HttpCodec {
     public static final AsciiString APPLICATION_JSON_UTF8 = AsciiString.cached("application/json;charset=utf-8");
     private final ObjectMapper objectMapper;
     private final boolean useGzip;
     private final String host;
 
-    public HttpJsonCodec(ByteBufAllocator allocator, ObjectMapper objectMapper, boolean useGzip, String host) {
+    public HttpPlainCodec(ByteBufAllocator allocator, ObjectMapper objectMapper, boolean useGzip, String host) {
         super(allocator);
         this.objectMapper = objectMapper;
         this.useGzip = useGzip;
@@ -78,7 +79,6 @@ public class HttpJsonCodec extends HttpCodec {
         } else {
             objectMapper.writeValue(os, body);
         }
-        os.write(HeadersWriter.CRLF_SHORT);
         os.flush();
         os.close();
     }
@@ -95,7 +95,6 @@ public class HttpJsonCodec extends HttpCodec {
             h.put(header.getKey(), header.getValue());
         }
         if (content.readableBytes() > 0) {
-            InputStream in = new ByteBufInputStream(content);
 //            application/json;charset=UTF-8
             String content_type = headers.get(HttpHeaderNames.CONTENT_TYPE);
 
@@ -109,20 +108,12 @@ public class HttpJsonCodec extends HttpCodec {
             }
 
             try {
+                InputStream in = new ByteBufInputStream(content);
                 if ("gzip".equalsIgnoreCase(content_encode)) {
                     in = new GZIPInputStream(in);
                 }
                 if (isSuccess(code)) {
-                    String o = "";
-                    o = readAll(in);
-//                    if (content_type.contains("application/json")) {
-//                        JsonNode jsonNode = objectMapper.readTree(in);
-//                        o = jsonNode.toString();
-////                        ReqOptions options = conf.getOptions();
-////                        Object o = objectMapper.readValue(in,
-////                                objectMapper.getTypeFactory().constructType(options.getType().getType()));
-//                    }
-
+                    String o = readAll(in);
                     return new DefaultHttpResponse<>(code, h, o);
                 } else {
                     DefaultHttpResponse<Object> httpResponse = new DefaultHttpResponse<>(code, h, null);
@@ -142,7 +133,8 @@ public class HttpJsonCodec extends HttpCodec {
     }
 
     private static String readAll(InputStream in) throws IOException {
-        int len = Math.min(in.available(), 512);
+//        int len = Math.min(in.available(), 512);
+        int len = in.available();
         byte[] bs = new byte[len];
         int read = in.read(bs);
         in.close();

@@ -28,7 +28,7 @@ public abstract class HttpCodec implements Codec<HttpRequest<ReqOptions>, ByteBu
     private static final float TRAILERS_WEIGHT_NEW = HEADERS_WEIGHT_NEW;
     private static final float TRAILERS_WEIGHT_HISTORICAL = HEADERS_WEIGHT_HISTORICAL;
 
-    private static byte[] PROTOCOL_HTTP_11_CRLF = new byte[]{'H', 'T', 'T', 'P', '/', '1', '.', '1', HttpConstants.CR, HttpConstants.LF};
+    private static final byte[] PROTOCOL_HTTP_11_CRLF = new byte[]{'H', 'T', 'T', 'P', '/', '1', '.', '1', HttpConstants.CR, HttpConstants.LF};
     private final ByteBufAllocator allocator;
 
     private volatile float initialHeadersCapacity = 256;
@@ -64,7 +64,7 @@ public abstract class HttpCodec implements Codec<HttpRequest<ReqOptions>, ByteBu
             throw e;
         }
 
-        ByteBufUtil.writeShortBE(headers, HeadersWriter.CRLF_SHORT);
+//        ByteBufUtil.writeShortBE(headers, HeadersWriter.CRLF_SHORT);
 
         initialHeadersCapacity = TRAILERS_WEIGHT_NEW * padSizeForAccumulation(headers.readableBytes()) +
                 TRAILERS_WEIGHT_HISTORICAL * initialHeadersCapacity;
@@ -75,6 +75,8 @@ public abstract class HttpCodec implements Codec<HttpRequest<ReqOptions>, ByteBu
             ByteBuf body = stream.getBuf();
             buffer.addComponent(true, 1, body);
         }
+
+
         return buffer;
     }
 

@@ -243,9 +243,11 @@ public class HttpConnection implements HttpEndPoint, NettyHttpHandler.Listener {
         HttpConnection next = this.next;
         if (next == null || next == this) {
             Iterator<HttpRequest> iterator = reqs.iterator();
-            while (iterator.hasNext() && waitingQueue.offer(iterator.next()) < 0) ;
+            while (iterator.hasNext() && waitingQueue.offer(iterator.next()) < 0) {
+
+            }
             if (iterator.hasNext()) {
-                RpcException exp = new RpcException("to many req waiting unopened connection");
+                RpcException exp = new RpcException("to many req waiting unopened connection" + reqs.size());
                 do {
                     iterator.next().onErr(exp);
                 } while (iterator.hasNext());
